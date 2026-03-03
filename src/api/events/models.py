@@ -30,3 +30,8 @@ class EventUpdateSchema(SQLModel):
 
 class EventListSchema(SQLModel):
     events: list[EventModel] ## List[EventSchema]
+
+class EventBucketSchema(SQLModel):
+    bucket: datetime
+    page: str
+    count: int

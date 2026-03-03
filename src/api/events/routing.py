@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from src.api.db.session import get_session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List
 
 from src.api.db.config import DATABASE_URL
 from src.api.db.session import get_session
@@ -7,26 +7,58 @@ from sqlmodel import Session, select
 
 from .models import (
     EventModel, 
-    EventListSchema, 
+    EventBucketSchema, 
     EventCreateSchema,
     EventUpdateSchema,
     get_utc_now
 )   
 
+from datetime import datetime, timedelta, timezone
+from timescaledb.hyperfunctions import time_bucket
+from sqlalchemy import func
+
 router = APIRouter()
+
+DEFAULT_LOOKUP_PAGES = ['/about', '/contact', '/pages', '/pricing']
 
 # GET
 # List view
 # GET /api/events/ -> list of events
-@router.get("/", response_model = EventListSchema)
-def read_events(session: Session = Depends(get_session)):
+@router.get("/", response_model = List[EventBucketSchema])
+def read_events(
+    duration: str = Query(default="1 day"),
+    pages: List = Query(default=None),
+    session: Session = Depends(get_session) 
+    ):
 
     print(DATABASE_URL)
     
-    query = select(EventModel)
-    results = session.exec(query).all()
+    bucket = time_bucket("1 day", EventModel.time)
+    lookup_pages = pages if isinstance(pages, list) and len(pages) > 0 else DEFAULT_LOOKUP_PAGES 
+
+    query = (
+        select(
+            bucket.label('bucket'),
+            EventModel.page.label('page'),
+            func.count().label('count')
+        )
+        .where(
+            EventModel.page.in_(lookup_pages)
+        )
+        .group_by(
+            bucket,
+            EventModel.page,)
+    )
+    results = session.exec(query).fetchall()
     
-    return EventListSchema(events=results)
+    return [
+    EventBucketSchema(
+        bucket=row.bucket,
+        page=row.page,
+        count=row.count,
+    )
+    for row in results
+    ]
 
 # GET
 # Individual view
