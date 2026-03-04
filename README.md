@@ -1,4 +1,4 @@
-<div align="center">analytics-api-microsservice</div>
+<div align="center"><h1>analytics-api-microsservice</h1></div>
 
 <div align="center">
 
