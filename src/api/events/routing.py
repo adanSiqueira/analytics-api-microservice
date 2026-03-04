@@ -14,7 +14,7 @@ from .models import (
 
 from datetime import datetime, timedelta, timezone
 from timescaledb.hyperfunctions import time_bucket
-from sqlalchemy import func
+from sqlalchemy import func, case
 
 router = APIRouter()
 
@@ -30,7 +30,14 @@ def read_events(
     session: Session = Depends(get_session) 
     ):
 
-    print(DATABASE_URL)
+    os_case = case(
+        (EventModel.user_agent.ilike('%windows%'), 'Windows'),
+        (EventModel.user_agent.ilike('%macintosh%'), 'MacOS'),
+        (EventModel.user_agent.ilike('%iphone%'), 'iOS'),
+        (EventModel.user_agent.ilike('%android%'), 'Android'),
+        (EventModel.user_agent.ilike('%linux%'), 'Linux'),
+        else_='Other'
+    ).label('operating_system')
     
     bucket = time_bucket("1 day", EventModel.time)
     lookup_pages = pages if isinstance(pages, list) and len(pages) > 0 else DEFAULT_LOOKUP_PAGES 
@@ -38,7 +45,9 @@ def read_events(
     query = (
         select(
             bucket.label('bucket'),
+            os_case,
             EventModel.page.label('page'),
+            func.avg(EventModel.duration).label("avg_duration"),
             func.count().label('count')
         )
         .where(
@@ -46,7 +55,14 @@ def read_events(
         )
         .group_by(
             bucket,
-            EventModel.page,)
+            EventModel.user_agent,
+            EventModel.page,
+        )
+        .order_by(
+            bucket,
+            os_case,
+            EventModel.page
+        )
     )
     results = session.exec(query).fetchall()
     
@@ -90,28 +106,3 @@ def create_event(
     session.refresh(obj)
 
     return obj
-
-
-#PUT
-# @router.put("/{event_id}", response_model=EventModel)
-# def update_event(event_id: int, 
-#                  payload: EventUpdateSchema,
-#                  session: Session = Depends(get_session)):
-    
-#     query = select(EventModel).where(EventModel.id == event_id)
-#     obj = session.exec(query).first()
-#     if not obj:
-#         raise HTTPException (status_code=404, detail="Event not found.")
-    
-#     data = payload.model_dump()
-
-#     for key, value in data.items():
-#         setattr(obj, key, value)
-    
-#     obj.updated_at = get_utc_now()
-
-#     session.add(obj)
-#     session.commit()
-#     session.refresh(obj)
-
-#     return obj

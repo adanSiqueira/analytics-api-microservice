@@ -38,4 +38,7 @@ class EventListSchema(SQLModel):
 class EventBucketSchema(SQLModel):
     bucket: datetime
     page: str
+    ua: Optional[str] = ""
+    operating_system: Optional[str] = ""
+    avg_duration: Optional[float] = 0.00
     count: int
