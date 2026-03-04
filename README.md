@@ -1,4 +1,4 @@
-<div align="center"><h1>analytics-api-microsservice</h1></div>
+<div align="center"><h1>analytics-api-microservice</h1></div>
 
 <div align="center">
 
@@ -32,7 +32,7 @@ The service is containerized with Docker and architected for:
 
 ---
 
-## 🏗 Project Structure
+## Project Structure
 
 ```
 .
